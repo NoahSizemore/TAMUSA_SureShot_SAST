@@ -4,8 +4,7 @@
 
 [![](https://img.shields.io/badge/blue.svg)](link)
 
-[Noah Sizemore](https://github.com/NoahSizemore) &nbsp;•&nbsp; [David Hinojosa]()
-
+[Noah Sizemore](https://github.com/NoahSizemore) &nbsp;•&nbsp;[David Hinojosa]() &nbsp;•&nbsp; [William Hale]()
 </div>
 
 ## 📝 Project Scope
