@@ -2,9 +2,10 @@
 
 # NAME: TAMUSA Software Engineering I Term Project
 
-[![](https://img.shields.io/badge/blue.svg)](link)
+![Project](https://img.shields.io/badge/Project-TAMUSA-blue)
 
-[Noah Sizemore](https://github.com/NoahSizemore) &nbsp;•&nbsp;[David Hinojosa]() &nbsp;•&nbsp; [William Hale]()
+[Noah Sizemore](https://github.com/NoahSizemore) &nbsp;•&nbsp; [David Hinojosa]() &nbsp;•&nbsp; [William Hale]()
+
 </div>
 
 ## 📝 Project Scope
