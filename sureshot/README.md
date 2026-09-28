@@ -87,7 +87,7 @@ Use it only to exercise plumbing.
 
 ### Size-confound ablation
 
-Positives average 2.4× longer than negatives (1,333 vs 555 chars) — a known
+Positives average 2.4x longer than negatives (1,333 vs 555 chars) — a known
 commit-mining artifact, since fixes touch larger functions. Removing all size
 features drops AUROC only 0.621 → 0.600, and size features account for 13.8%
 of total gain. **The model is not simply learning "long function = vulnerable."**
@@ -140,27 +140,4 @@ workers help up to about 12.
 
 ---
 
-## Where to go next
 
-In priority order:
-
-1. **Grow the positive class.** 477 is workable but thin. The GitHub Security
-   Advisory database (GHSA) carries Rust entries beyond RustSec, and OSV
-   aggregates both. That is the cheapest path to ~1,000 positives.
-2. **Add Clippy features.** `cargo clippy --message-format=json` gives per-function
-   diagnostic counts. High signal, nearly free, and currently unused.
-3. **Audit labels.** Sample 50 positives, check by hand how many really contain
-   the flaw. Report that rate in your paper — it bounds everything else.
-4. **Repeated grouped CV.** One split on 151 repos is noisy. Use
-   `StratifiedGroupKFold` across 5 folds and report mean ± std.
-5. **Risk–coverage curve.** You have the abstention band already; plotting
-   accuracy against coverage is the strongest single figure for this project.
-
-## A correction for your requirements document
-
-Slide 5 lists "a XGBoost model with pretrained weights" as a requirement. No
-such pretrained model exists for Rust vulnerability detection — the weights are
-trained here, from this corpus. Slide 5 also treats the vulnerability rules and
-the model as separate components; in this implementation the rules *are* the
-features (`extract/features.py`), and XGBoost learns the weighting. Both are
-worth correcting before the document goes further.
