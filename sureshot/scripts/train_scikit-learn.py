@@ -1,13 +1,4 @@
 #!/usr/bin/env python3
-"""
-Reference pipeline. This is the baseline your own model gets compared against.
-
-It is deliberately thin: every piece of infrastructure lives in the sureshot
-package, so this file contains nothing but the model definition. Yours should
-look the same way.
-
-    python scripts/train_reference.py --data data/processed/rustsec_v0.1.parquet
-"""
 
 from __future__ import annotations
 
