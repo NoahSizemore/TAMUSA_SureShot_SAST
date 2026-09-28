@@ -1,0 +1,108 @@
+{
+  "data": "data/processed/synthetic_v0.1.parquet",
+  "n": 4200,
+  "splits": {
+    "train": 2485,
+    "calib": 665,
+    "test": 1050
+  },
+  "metrics": {
+    "uncalibrated": {
+      "auprc": 0.9999999999999999,
+      "auroc": 1.0,
+      "brier": 0.20774149894714355,
+      "ece_quantile": 0.42707838427452827,
+      "ece_uniform": 0.4402838205723535,
+      "mce": 0.45366601834834464
+    },
+    "platt": {
+      "auprc": 0.9999999999999999,
+      "auroc": 1.0,
+      "brier": 0.0008985139743336916,
+      "ece_quantile": 0.004206583456509874,
+      "ece_uniform": 0.00919735505801837,
+      "mce": 0.1672524807375545
+    },
+    "isotonic": {
+      "auprc": 1.0,
+      "auroc": 1.0,
+      "brier": 0.0,
+      "ece_quantile": 0.0,
+      "ece_uniform": 0.0,
+      "mce": 0.0
+    }
+  },
+  "best_calibrator": "isotonic",
+  "ece_ci": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "threshold": 0.05,
+  "test_precision": 1.0,
+  "test_recall": 1.0,
+  "test_f1": 1.0,
+  "size_feature_share": 0.12154828757047653,
+  "top_features": [
+    [
+      "ast_unsafe_block",
+      0.21170473098754883
+    ],
+    [
+      "tok_unsafe_block_per_line",
+      0.07280700653791428
+    ],
+    [
+      "max_nest_depth",
+      0.07122204452753067
+    ],
+    [
+      "loc_nonblank",
+      0.06598354876041412
+    ],
+    [
+      "tok_unsafe_block",
+      0.06312771141529083
+    ],
+    [
+      "ast_call_expression",
+      0.06076053902506828
+    ],
+    [
+      "tok_raw_const_ptr_per_line",
+      0.055003199726343155
+    ],
+    [
+      "tok_unsafe_fn_per_line",
+      0.05478599667549133
+    ],
+    [
+      "unsafe_line_ratio",
+      0.05236463621258736
+    ],
+    [
+      "tok_ptr_add_per_line",
+      0.042814403772354126
+    ],
+    [
+      "tok_option_type_per_line",
+      0.02483181469142437
+    ],
+    [
+      "max_line_len",
+      0.022536074742674828
+    ],
+    [
+      "tok_ptr_null_check_per_line",
+      0.02233324758708477
+    ],
+    [
+      "loc",
+      0.021690113469958305
+    ],
+    [
+      "tok_ptr_null_check",
+      0.02013387158513069
+    ]
+  ]
+}
