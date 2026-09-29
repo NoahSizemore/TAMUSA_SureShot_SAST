@@ -31,6 +31,11 @@ TOKEN_RULES: dict[str, str] = {
     "unsafe_block":      r"\bunsafe\s*\{",
     "unsafe_fn":         r"\bunsafe\s+(?:extern\s+\"[^\"]*\"\s+)?fn\b",
     "unsafe_impl":       r"\bunsafe\s+impl\b",
+    # --- additional unsafe operations ---
+    "get_unchecked":       r"\.\s*get_unchecked(?:_mut)?\s*\(",
+    "unwrap_unchecked":    r"\.\s*unwrap_unchecked\s*\(",
+    "from_utf8_unchecked": r"\b(?:str::)?from_utf8_unchecked\s*\(",
+    "unchecked_arith":     r"\.\s*unchecked_(?:add|sub|mul|div|shl|shr)\s*\(",
     # --- raw pointers ---
     "raw_const_ptr":     r"\*const\b",
     "raw_mut_ptr":       r"\*mut\b",
@@ -39,12 +44,18 @@ TOKEN_RULES: dict[str, str] = {
     "ptr_wrapping":      r"\.\s*wrapping_(?:add|sub|offset|mul)\s*\(",
     "ptr_read_write":    r"\bptr::(?:read|write|copy|copy_nonoverlapping)\b",
     "ptr_null_check":    r"\.\s*is_null\s*\(\s*\)",
+    "ptr_read_unaligned":  r"\bptr::read_unaligned\b",
+    "ptr_write_unaligned": r"\bptr::write_unaligned\b",
+    "ptr_as_ref":          r"\.\s*as_ref\s*\(",
+    "ptr_as_mut":          r"\.\s*as_mut\s*\(",
     # --- FFI ---
     "extern_c":          r"\bextern\s+\"C\"",
     "no_mangle":         r"#\[\s*no_mangle\s*\]",
     "libc_call":         r"\blibc::",
     "c_string":          r"\bC(?:String|Str)\b",
     "from_raw_parts":    r"\bfrom_raw_parts(?:_mut)?\s*\(",
+    "cstring_from_vec":  r"\bCString::from_vec_unchecked\b",
+    "from_ptr":          r"\b(?:CStr|CString)::from_ptr\b",
     # --- memory management ---
     "transmute":         r"\bmem::transmute\b|\btransmute\s*(?:::<[^>]*>)?\s*\(",
     "mem_forget":        r"\bmem::forget\b",
