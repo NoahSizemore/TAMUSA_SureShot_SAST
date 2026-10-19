@@ -1,9 +1,9 @@
 """
 Data loading, feature matrix construction, and splitting.
 
-Both the reference pipeline and your own must import from here, so that any
+Both the reference pipeline and personal must import from here, so that any
 comparison between them differs ONLY in the model. If you copy this logic into
-your own script and it drifts, you are no longer comparing models -- you are
+personal script and it drifts, you are no longer comparing models -- you are
 comparing two different pipelines, and the comparison is meaningless.
 """
 

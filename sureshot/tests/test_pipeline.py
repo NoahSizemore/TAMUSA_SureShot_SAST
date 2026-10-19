@@ -14,7 +14,23 @@ import numpy as np
 import pytest
 
 from sureshot import calibrate, data, metrics
-from sureshot.features import FEATURE_NAMES, extract_features, is_probably_rust
+from sureshot.features import (AST_NODE_TYPES, FEATURE_NAMES, TOKEN_RULES,
+                               extract_features, is_probably_rust)
+
+# The feature count is pinned here so that CHANGING it requires editing a test,
+# which forces the change to be deliberate. It is not a style rule: the number
+# of features is part of the model's input contract. Every saved model bundle
+# records the feature names it was trained on (see sureshot/persist.py), and
+# adding or removing a rule silently invalidates every bundle produced before
+# the change -- the booster would be fed columns that no longer mean what it
+# learned them to mean.
+#
+# When you add a token rule, this number goes up by 2 (the raw count plus its
+# per-line ratio), and the correct response is to retrain and re-save, not to
+# just bump the constant.
+#
+# History: 122 before commit 4a1fee0, which added 10 token rules -> 142.
+EXPECTED_FEATURE_COUNT = 142
 
 
 # --------------------------------------------------------------------------
@@ -26,7 +42,19 @@ def test_feature_vector_has_stable_shape():
     for src in (b"", b"fn a(){}", b"garbage ]]] {{{", b"\xff\xfe\x00bad utf8"):
         f = extract_features(src)
         assert set(f) == set(FEATURE_NAMES)
-        assert len(f) == 122
+        assert len(f) == len(FEATURE_NAMES)
+
+
+def test_feature_count_matches_its_parts():
+    """
+    The documented count, and the arithmetic behind it. Each token rule emits
+    two features (a count and a per-line ratio); each AST node type emits one;
+    the remaining 16 are the size/shape/derived scalars.
+    """
+    assert len(FEATURE_NAMES) == EXPECTED_FEATURE_COUNT
+    assert len(FEATURE_NAMES) == 2 * len(TOKEN_RULES) + len(AST_NODE_TYPES) + 16
+    # No duplicate names: a collision would silently overwrite a column.
+    assert len(set(FEATURE_NAMES)) == len(FEATURE_NAMES)
 
 
 def test_extract_never_raises():
@@ -215,11 +243,11 @@ def test_temperature_scaling_preserves_ranking():
 
 
 # --------------------------------------------------------------------------
-# the model contract -- run this against YOUR model
+# the model contract -- run this against the model
 # --------------------------------------------------------------------------
 
 class _DummyModel:
-    """Minimal model satisfying the contract. Yours must do at least this."""
+    """Minimal model satisfying the contract. Must do at least this."""
 
     def fit(self, X, y, X_val=None, y_val=None):
         self.mean_ = float(np.mean(y))

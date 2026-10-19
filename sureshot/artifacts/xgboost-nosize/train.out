@@ -1,0 +1,48 @@
+# command : .venv/Scripts/python.exe scripts/train_XGBoost.py --data data/processed/rustsec_v0.1.parquet --source-type rustsec --seed 42 --select-on test --report reports/mine_nosize.json --save artifacts/xgboost-nosize --drop-size-features
+# utc     : 2026-10-19T19:39:25Z
+# python  : Python 3.12.4
+
+
+=== xgboost-native ===
+rows=8162  pos=477  repos=151  features=136
+  train  n= 4223  pos= 267  repos=90  prevalence=0.0632
+  calib  n= 2047  pos= 123  repos=30  prevalence=0.0601
+  test   n= 1892  pos=  87  repos=31  prevalence=0.0460
+
+model            AUPRC   AUROC   Brier   ECE-q   ECE-u     MCE
+uncalibrated    0.0684  0.6115  0.2169  0.4135  0.4135  0.4830
+platt           0.0684  0.6115  0.0439  0.0178  0.0142  0.0265
+isotonic        0.0695  0.6254  0.0443  0.0163  0.0124  0.9591
+temperature     0.0684  0.6115  0.1853  0.3190  0.3198  0.7932
+
+best calibrator: isotonic   ECE 0.0192  95% CI [0.0120, 0.0271]
+ECE reduction vs uncalibrated: +0.3973
+
+threshold 0.09 (picked on calibration split)
+test precision=0.085  recall=0.310  F1=0.133   (base rate 0.0460)
+
+risk-coverage (abstain on the least confident):
+  coverage 100.0%   accuracy 0.814
+  coverage  81.0%   accuracy 0.919
+  coverage  62.0%   accuracy 0.959
+  coverage  38.3%   accuracy 0.964
+  coverage  19.2%   accuracy 0.973
+
+=== top 10 features by gain ===
+  0.0474  param_count
+  0.0291  tok_raw_const_ptr
+  0.0281  deref_density
+  0.0248  tok_unwrap
+  0.0236  tok_result_type_per_line
+  0.0236  max_nest_depth
+  0.0226  generic_param_count
+  0.0224  tok_clone_call
+  0.0217  tok_expect_per_line
+  0.0209  tok_ptr_add_per_line
+
+size-feature share: 0.0%
+
+saved detector bundle to artifacts\xgboost-nosize
+  (booster + isotonic calibrator + threshold 0.09 + 136 feature names)
+
+wrote reports\mine_nosize.json

@@ -1,0 +1,28 @@
+# command : .venv/Scripts/python.exe scripts/scan.py --model artifacts/xgboost --all demo/vulnerable_buffer.rs
+# utc     : 2026-10-19T19:39:32Z
+# python  : Python 3.12.4
+
+=== SureShot detector: artifacts\xgboost ===
+calibrator     isotonic
+threshold      0.1000
+features       142
+run label      xgboost-native
+test AUPRC     0.0632   AUROC 0.6129
+test P/R       precision 0.078  recall 0.230
+
+-- demo\vulnerable_buffer.rs
+   VULNERABLE  p=0.116  margin=0.016  lines 21-23  as_slice()
+   ok          p=0.100  margin=0.000  lines 14-18  copy_region()
+   ok          p=0.044  margin=0.056  lines 26-30  parse_length()
+   ok          p=0.044  margin=0.056  lines 33-37  decode_name()
+   ok          p=0.044  margin=0.056  lines 40-46  checked_total()
+   ok          p=0.044  margin=0.056  lines 49-55  byte_at()
+   ok          p=0.044  margin=0.056  lines 58-60  reinterpret()
+
+==================================================================
+1 file(s) scanned, 7 function(s) scored, 0 skipped
+1 flagged at threshold 0.100
+
+Calibration note: at this threshold the detector measured precision 0.078 and recall 0.230 on held-out repositories.
+Expect roughly 8 in 100 flags to be real, and expect it to miss about 77% of real issues.
+Treat flags as 'review this first', not as proof of a bug.

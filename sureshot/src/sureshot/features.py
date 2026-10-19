@@ -11,11 +11,17 @@ Contract:
   - deterministic
   - never raises (malformed input yields sentinel values)
   - stable key set (FEATURE_NAMES), so the matrix never changes shape
+
+This module also owns `iter_functions()`, which cuts a whole .rs file into the
+individual functions that the model scores. Training data arrived pre-cut (the
+harvester did the cutting), but at scan time the user hands us a file, so the
+inference path needs the same operation.
 """
 
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from tree_sitter import Language, Parser, Query, QueryCursor
 import tree_sitter_rust as ts_rust
 
@@ -223,6 +229,95 @@ def extract_features(source: bytes | str) -> dict[str, float]:
         feats["has_parse_error"] = 1.0
 
     return feats
+
+
+# --------------------------------------------------------------------------
+# Function splitting -- used by the scanner, not by training.
+# --------------------------------------------------------------------------
+
+# Capture every `fn` item together with its name. The @func capture is the
+# whole function including its signature and body; @name is just the
+# identifier. Tree-sitter queries are the right tool here rather than a regex,
+# because finding the end of a function means balancing braces, and braces
+# appear inside strings, chars and comments where a regex would miscount.
+_FUNC_QUERY = Query(RUST, "(function_item name: (identifier) @name) @func")
+
+
+@dataclass(frozen=True)
+class Function:
+    """One function located in a source file, ready to be featurised."""
+    name: str
+    source: str
+    start_line: int          # 1-based, for human-readable scanner output
+    end_line: int
+
+    @property
+    def n_lines(self) -> int:
+        return self.end_line - self.start_line + 1
+
+
+def iter_functions(source: bytes | str,
+                   min_lines: int = 3,
+                   max_chars: int = 20_000) -> list[Function]:
+    """
+    Cut a Rust source file into its functions.
+
+    Returns every function found, in source order. Unlike the harvester's
+    equivalent, this does NOT de-duplicate by name: two methods called `new` in
+    different impl blocks are two separate findings for a scanner, whereas the
+    harvester only wanted one row per name.
+
+    `min_lines=3` mirrors the training filter. Functions shorter than that were
+    dropped from the corpus, so the model never learned what they look like and
+    scoring them would be extrapolation. `max_chars` guards against a generated
+    or minified file turning one "function" into a megabyte of features.
+
+    Never raises: an unparseable file yields an empty list.
+    """
+    if isinstance(source, str):
+        source = source.encode("utf-8", errors="replace")
+    if not source.strip():
+        return []
+
+    try:
+        tree = Parser(RUST).parse(source)
+    except Exception:
+        return []
+
+    try:
+        caps = QueryCursor(_FUNC_QUERY).captures(tree.root_node)
+    except Exception:
+        return []
+
+    func_nodes = caps.get("func", [])
+    name_nodes = caps.get("name", [])
+
+    out: list[Function] = []
+    for fn in func_nodes:
+        # Pair each function with its own name node. The query returns two flat
+        # lists, so we match by byte span: a function's name is the first name
+        # capture whose start falls inside that function's extent.
+        name = None
+        for nm in name_nodes:
+            if fn.start_byte <= nm.start_byte < fn.end_byte:
+                name = source[nm.start_byte:nm.end_byte].decode(errors="replace")
+                break
+        if name is None:
+            continue
+
+        text = source[fn.start_byte:fn.end_byte].decode(errors="replace")
+        if len(text) > max_chars:
+            continue
+        if text.count("\n") + 1 < min_lines:
+            continue
+
+        # tree-sitter rows are 0-based; humans and editors count from 1.
+        out.append(Function(name=name, source=text,
+                            start_line=fn.start_point[0] + 1,
+                            end_line=fn.end_point[0] + 1))
+
+    out.sort(key=lambda f: f.start_line)
+    return out
 
 
 def is_probably_rust(source: bytes | str, min_ratio: float = 0.35) -> tuple[bool, str]:

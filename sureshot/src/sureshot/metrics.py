@@ -3,7 +3,7 @@ Calibration and discrimination metrics.
 
 sklearn ships Brier score but not ECE, so the calibration metrics here are
 hand-written. This module is pure functions over (y_true, p_pred) -- it knows
-nothing about models, so your pipeline and the reference pipeline are scored by
+nothing about models, so the pipeline and the reference pipeline are scored by
 identical code.
 """
 

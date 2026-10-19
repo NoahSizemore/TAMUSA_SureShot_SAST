@@ -38,3 +38,34 @@
 
 
 ## ✨ Key Features
+
+### How to use the model
+
+To run the model, simply run the following:
+```bash
+cd surshot
+run_model.sh
+```
+
+Alternatively, you could do the following commmands if you wish to no use the script:
+
+```bash
+cd sureshot
+.venv\Scripts\activate
+
+# train + evaluate + save, in one run
+python scripts/train_XGBoost.py \
+    --data data/processed/rustsec_v0.1.parquet \
+    --source-type rustsec --seed 42 \
+    --report reports/mine.json \
+    --save artifacts/xgboost
+
+# same for the baseline
+python scripts/train_scikit-learn.py \
+    --data data/processed/rustsec_v0.1.parquet \
+    --source-type rustsec --seed 42 \
+    --report reports/reference.json --save artifacts/reference
+
+# side-by-side the two reports
+python -c "from sureshot.pipeline import compare; compare('reports/reference.json','reports/mine.json')"
+```

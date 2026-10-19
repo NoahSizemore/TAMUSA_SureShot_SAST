@@ -1,0 +1,12 @@
+# command : .venv/Scripts/python.exe -c from sureshot.pipeline import compare; compare('reports/reference.json', 'reports/mine.json')
+# utc     : 2026-10-19T19:39:31Z
+# python  : Python 3.12.4
+
+metric                  reference-xgb xgboost-native     delta
+unca.auprc                     0.0705         0.0705   +0.0000
+unca.auroc                     0.6338         0.6338   +0.0000
+unca.brier                     0.2066         0.2066   +0.0000
+unca.ece_quantile              0.3955         0.3955   +0.0000
+op.precision                   0.0778         0.0778   +0.0000
+op.recall                      0.2299         0.2299   +0.0000
+op.f1                          0.1163         0.1163   +0.0000

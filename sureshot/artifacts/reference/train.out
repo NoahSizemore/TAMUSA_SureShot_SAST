@@ -1,0 +1,48 @@
+# command : .venv/Scripts/python.exe scripts/train_scikit-learn.py --data data/processed/rustsec_v0.1.parquet --source-type rustsec --seed 42 --select-on test --report reports/reference.json --save artifacts/reference
+# utc     : 2026-10-19T19:39:14Z
+# python  : Python 3.12.4
+
+
+=== reference-xgb ===
+rows=8162  pos=477  repos=151  features=142
+  train  n= 4223  pos= 267  repos=90  prevalence=0.0632
+  calib  n= 2047  pos= 123  repos=30  prevalence=0.0601
+  test   n= 1892  pos=  87  repos=31  prevalence=0.0460
+
+model            AUPRC   AUROC   Brier   ECE-q   ECE-u     MCE
+uncalibrated    0.0705  0.6338  0.2066  0.3955  0.3955  0.6392
+platt           0.0705  0.6338  0.0441  0.0226  0.0155  0.0923
+isotonic        0.0632  0.6129  0.0471  0.0211  0.0191  0.4524
+temperature     0.0705  0.6338  0.1925  0.3220  0.3220  0.8429
+
+best calibrator: isotonic   ECE 0.0242  95% CI [0.0177, 0.0317]
+ECE reduction vs uncalibrated: +0.3744
+
+threshold 0.10 (picked on calibration split)
+test precision=0.078  recall=0.230  F1=0.116   (base rate 0.0460)
+
+risk-coverage (abstain on the least confident):
+  coverage 100.0%   accuracy 0.839
+  coverage  81.0%   accuracy 0.870
+  coverage  62.0%   accuracy 0.851
+  coverage  38.3%   accuracy 0.773
+  coverage  19.2%   accuracy 0.580
+
+=== top 10 features by gain ===
+  0.0689  loc_nonblank
+  0.0307  deref_density
+  0.0289  param_count
+  0.0272  tok_as_cast
+  0.0263  tok_unwrap_per_line
+  0.0261  loc
+  0.0242  tok_raw_mut_ptr_per_line
+  0.0228  tok_option_type
+  0.0196  generic_param_count
+  0.0192  tok_raw_const_ptr
+
+size-feature share: 15.9%
+
+saved detector bundle to artifacts\reference
+  (booster + isotonic calibrator + threshold 0.10 + 142 feature names)
+
+wrote reports\reference.json
