@@ -1,6 +1,6 @@
 <div align="center">
 
-# NAME: TAMUSA Software Engineering I Term Project
+# TAMUSA Software Engineering I Term Project
 
 ![Project](https://img.shields.io/badge/Project-TAMUSA-red)
 
