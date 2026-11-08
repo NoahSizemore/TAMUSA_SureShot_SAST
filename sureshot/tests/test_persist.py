@@ -503,12 +503,39 @@ def test_abstain_margin_converts_borderline_calls_to_unsure(rust_bundle):
     With a margin of 1.0 every prediction is within the band, so everything
     must become UNSURE. This is the abstention behaviour that makes a weak
     discriminator still useful.
+
+    Rules are off here because this tests the MODEL's abstention; a
+    high-severity rule hit deliberately overrides it (tested below).
     """
-    result = scan.scan_source(rust_bundle, RUST_SAMPLE, abstain_margin=1.0)
+    result = scan.scan_source(rust_bundle, RUST_SAMPLE, abstain_margin=1.0,
+                              rules=False)
     assert result.findings
     assert all(f.abstained for f in result.findings)
     assert all(f.verdict == "UNSURE" for f in result.findings)
     assert result.flagged == []
+
+
+def test_high_severity_rule_overrides_model_abstention(rust_bundle):
+    """
+    Abstention means the model is unsure. A rule match is not uncertain, so a
+    function with a high-severity hit is still reported.
+    """
+    result = scan.scan_source(rust_bundle, RUST_SAMPLE, abstain_margin=1.0)
+    by_name = {f.function: f for f in result.findings}
+    copy_into = by_name["copy_into"]           # uses ptr::copy_nonoverlapping
+    assert copy_into.abstained
+    assert copy_into.rule_flagged
+    assert copy_into.verdict == "VULNERABLE"
+    assert copy_into in result.flagged
+    assert copy_into not in result.abstained
+    assert by_name["safe_sum"].verdict == "UNSURE"
+
+
+def test_rules_off_reproduces_model_only_output(rust_bundle):
+    """With rules=False, what is reported is exactly the model's own calls."""
+    result = scan.scan_source(rust_bundle, RUST_SAMPLE, rules=False)
+    assert all(f.rule_hits == [] for f in result.findings)
+    assert result.flagged == [f for f in result.findings if f.flagged]
 
 
 def test_no_abstention_by_default(rust_bundle):

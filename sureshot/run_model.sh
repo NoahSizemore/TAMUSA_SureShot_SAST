@@ -40,7 +40,7 @@ DATA="data/processed/rustsec_v0.1.parquet"
 SOURCE_TYPE="rustsec"
 SEED=42
 SCAN_TARGET="demo/vulnerable_buffer.rs"
-SELECT_ON="test"
+SELECT_ON="calib"
 SKIP_TESTS=0
 
 usage() {
@@ -53,8 +53,8 @@ Options:
   --seed N             repo-split seed; must match across models to compare
   --scan PATH          file or directory for the demo scan
   --select-on WHICH    test | calib  -- how the winning calibrator is chosen.
-                       'test' reproduces the committed numbers; 'calib' is the
-                       leak-free option (grouped out-of-fold CV).
+                       'calib' (default) is the leak-free option (grouped
+                       out-of-fold CV); 'test' reproduces the older numbers.
   --skip-tests         do not run pytest first (not recommended)
   -h, --help           this text
 EOF
@@ -85,20 +85,44 @@ done
 
 if   [[ -x ".venv/Scripts/python.exe" ]]; then PY=".venv/Scripts/python.exe"   # Windows
 elif [[ -x ".venv/bin/python" ]];       then PY=".venv/bin/python"             # macOS / Linux
+elif command -v python3 >/dev/null 2>&1; then PY="python3"                    # macOS has no bare `python`
 elif command -v python >/dev/null 2>&1; then PY="python"
 else
     echo "error: no Python found. Create the venv first:" >&2
-    echo "  python -m venv .venv && .venv/Scripts/activate   # Windows" >&2
-    echo "  python -m venv .venv && source .venv/bin/activate # POSIX" >&2
-    echo "  pip install -e \".[dev,plot]\"" >&2
+    echo "  python -m venv .venv && .venv/Scripts/activate     # Windows" >&2
+    echo "  python3 -m venv .venv && source .venv/bin/activate # macOS / Linux" >&2
+    echo "  pip install -r requirements.txt" >&2
     exit 2
 fi
 
 # Fail early with a clear message rather than deep inside an import.
-if ! "$PY" -c "import sureshot, xgboost, sklearn, tree_sitter_rust" 2>/dev/null; then
+if ! "$PY" -c "import sureshot, sklearn, tree_sitter_rust" 2>/dev/null; then
     echo "error: dependencies missing from $PY" >&2
-    echo "  $PY -m pip install -e \".[dev,plot]\"" >&2
+    echo "  $PY -m pip install -r requirements.txt" >&2
     exit 2
+fi
+
+# XGBoost on macOS needs the OpenMP runtime (libomp), which pip cannot
+# install. It normally comes from `brew install libomp`. If it is missing, use
+# the copy scikit-learn already ships inside its wheel. The FALLBACK variable
+# is only consulted after the normal search fails, so a Homebrew libomp still
+# wins when it exists. Exported variables do reach the venv's python (macOS
+# only strips DYLD_* when launching system binaries).
+if ! "$PY" -c "import xgboost" 2>/dev/null; then
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        SK_DYLIBS="$("$PY" -c 'import os, sklearn; print(os.path.join(os.path.dirname(sklearn.__file__), ".dylibs"))')"
+        if [[ -f "$SK_DYLIBS/libomp.dylib" ]]; then
+            export DYLD_FALLBACK_LIBRARY_PATH="$SK_DYLIBS${DYLD_FALLBACK_LIBRARY_PATH:+:$DYLD_FALLBACK_LIBRARY_PATH}"
+            echo "note: libomp not installed; using scikit-learn's bundled copy."
+            echo "      (brew install libomp makes this unnecessary)"
+        fi
+    fi
+    if ! "$PY" -c "import xgboost" 2>/dev/null; then
+        echo "error: xgboost is installed but cannot load." >&2
+        echo "  macOS: brew install libomp" >&2
+        echo "  other: $PY -c 'import xgboost' shows the underlying error" >&2
+        exit 2
+    fi
 fi
 
 if [[ ! -f "$DATA" ]]; then
@@ -124,6 +148,8 @@ mkdir -p artifacts reports
 # from PIPESTATUS[0].
 
 STEP=0
+LIBS_PY='from importlib.metadata import version as v
+print(" ".join(f"{p}={v(p)}" for p in ("xgboost", "scikit-learn", "numpy", "pandas", "pyarrow", "tree-sitter", "tree-sitter-rust")))'
 run_logged() {
     local out="$1"; shift
     mkdir -p "$(dirname "$out")"
@@ -139,6 +165,8 @@ run_logged() {
         echo "# command : $*"
         echo "# utc     : $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
         echo "# python  : $("$PY" --version 2>&1)"
+        echo "# platform: $("$PY" -c 'import platform; print(platform.platform())' 2>&1)"
+        echo "# libs    : $("$PY" -c "$LIBS_PY" 2>&1)"
         echo
     } > "$out"
 

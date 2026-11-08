@@ -1,0 +1,42 @@
+# Exact versions for reproducible runs. Install from this folder (sureshot/):
+#
+#   pip install -r requirements.txt
+#
+# Every version is pinned, including indirect dependencies, so two machines
+# that install this file get the same libraries. Prebuilt wheels exist for
+# Windows (x64) and macOS (Apple Silicon, macOS 14+) on Python 3.12 and 3.14.
+#
+# macOS only: XGBoost also needs the OpenMP runtime, which pip cannot install.
+# Either `brew install libomp`, or let run_model.sh fall back to the copy that
+# scikit-learn ships (see README).
+#
+# pyproject.toml keeps loose minimum versions for anyone using sureshot as a
+# library; this file is what the published numbers are produced with.
+
+# --- direct dependencies ---------------------------------------------------
+numpy==2.5.4
+pandas==3.1.1
+pyarrow==26.0.1
+scikit-learn==1.9.1
+tree-sitter==0.26.0
+tree-sitter-rust==0.24.2
+xgboost==3.4.1
+
+# --- tests -----------------------------------------------------------------
+pytest==9.2.0
+
+# --- indirect dependencies (pinned so they cannot drift) -------------------
+cloudpickle==3.1.2
+iniconfig==2.3.1
+joblib==1.6.0
+narwhals==2.28.0
+packaging==26.3
+pluggy==1.7.0
+Pygments==2.21.0
+python-dateutil==4.0.0
+scipy==1.18.1
+threadpoolctl==3.8.0
+tzdata==2026.6
+
+# --- this project, editable, so `import sureshot` works ---------------------
+-e .

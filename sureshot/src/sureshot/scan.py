@@ -15,6 +15,7 @@ THE PIPELINE, IN ORDER
       -> calibrator                honest probability
       -> threshold                 flag / do not flag
       -> margin                    optionally abstain when not confident
+      -> pattern rules             exact, explainable checks (rules.py)
 
 The order matters at both ends. The parser gate is first because a model fed
 Python will happily emit a confident number about it -- garbage in, confident
@@ -41,8 +42,10 @@ from pathlib import Path
 
 import numpy as np
 
+from . import rules as _rules
 from .features import extract_features, is_probably_rust, iter_functions
 from .persist import Bundle
+from .rules import RuleHit
 
 
 @dataclass
@@ -53,15 +56,47 @@ class Finding:
     start_line: int
     end_line: int
     probability: float      # calibrated P(vulnerable)
-    flagged: bool           # probability >= threshold
+    flagged: bool           # the MODEL's call: probability >= threshold
     margin: float           # |probability - threshold|
-    abstained: bool = False  # margin too small to stand behind the call
+    abstained: bool = False  # margin too small to stand behind the model's call
+    rule_hits: list[RuleHit] = field(default_factory=list)
+
+    @property
+    def rule_flagged(self) -> bool:
+        """A high-severity pattern rule fired."""
+        return any(h.severity == "high" for h in self.rule_hits)
+
+    @property
+    def reported(self) -> bool:
+        """
+        Whether the scanner reports this function as a finding: the model
+        flagged it (and did not abstain), or a high-severity rule fired. A rule
+        hit overrides abstention, because abstention is about the model's
+        uncertainty and a rule match is not uncertain.
+        """
+        return self.rule_flagged or (self.flagged and not self.abstained)
 
     @property
     def verdict(self) -> str:
+        if self.rule_flagged:
+            return "VULNERABLE"
         if self.abstained:
             return "UNSURE"
-        return "VULNERABLE" if self.flagged else "ok"
+        if self.flagged:
+            return "VULNERABLE"
+        if any(h.severity == "medium" for h in self.rule_hits):
+            return "review"
+        return "ok"
+
+    @property
+    def source_of_flag(self) -> str:
+        """Which detector(s) produced a VULNERABLE verdict: model, rule, or both."""
+        model = self.flagged and not self.abstained
+        if model and self.rule_flagged:
+            return "model+rule"
+        if self.rule_flagged:
+            return "rule"
+        return "model" if model else ""
 
 
 @dataclass
@@ -75,11 +110,18 @@ class ScanResult:
 
     @property
     def flagged(self) -> list[Finding]:
-        return [f for f in self.findings if f.flagged and not f.abstained]
+        """Functions reported as findings (model and/or high-severity rule)."""
+        return [f for f in self.findings if f.reported]
 
     @property
     def abstained(self) -> list[Finding]:
-        return [f for f in self.findings if f.abstained]
+        return [f for f in self.findings
+                if f.abstained and not f.rule_flagged]
+
+    @property
+    def review(self) -> list[Finding]:
+        """Not reported, but a medium-severity rule fired."""
+        return [f for f in self.findings if f.verdict == "review"]
 
 
 def featurise(bundle: Bundle, sources) -> np.ndarray:
@@ -105,7 +147,8 @@ def featurise(bundle: Bundle, sources) -> np.ndarray:
 
 def scan_source(bundle: Bundle, source: bytes | str, path: str = "<memory>",
                 abstain_margin: float = 0.0,
-                gate: bool = True) -> ScanResult:
+                gate: bool = True,
+                rules: bool = True) -> ScanResult:
     """
     Score every function in one blob of Rust source.
 
@@ -117,6 +160,10 @@ def scan_source(bundle: Bundle, source: bytes | str, path: str = "<memory>",
     gate
         Run the non-Rust parser check first. Leave this on unless you are
         deliberately scanning a pre-validated snippet.
+
+    rules
+        Also run the pattern rules in rules.py. With rules=False the result
+        is exactly what the model alone produces.
     """
     if gate:
         accepted, reason = is_probably_rust(source)
@@ -148,6 +195,7 @@ def scan_source(bundle: Bundle, source: bytes | str, path: str = "<memory>",
             flagged=bool(p >= bundle.threshold),
             margin=float(mg),
             abstained=bool(mg < abstain_margin),
+            rule_hits=(_rules.check(fn.source, fn.start_line) if rules else []),
         ))
 
     # Most suspicious first: that is the order a reviewer wants to read in.
@@ -199,6 +247,7 @@ def format_results(results: list[ScanResult], bundle: Bundle,
     """
     lines: list[str] = []
     n_files = n_funcs = n_flagged = n_unsure = n_rejected = 0
+    n_model = n_rule = n_review = 0
 
     for r in results:
         if not r.accepted:
@@ -210,24 +259,33 @@ def format_results(results: list[ScanResult], bundle: Bundle,
         n_funcs += len(r.findings)
         n_flagged += len(r.flagged)
         n_unsure += len(r.abstained)
+        n_review += len(r.review)
+        n_model += sum(1 for f in r.flagged if "model" in f.source_of_flag)
+        n_rule += sum(1 for f in r.flagged if "rule" in f.source_of_flag)
 
-        shown = r.findings if show_all else (r.flagged + r.abstained)
+        shown = r.findings if show_all else (r.flagged + r.abstained + r.review)
         if not shown:
             continue
 
         lines.append(f"\n-- {r.path}")
         for f in sorted(shown, key=lambda x: -x.probability):
+            via = f"  [{f.source_of_flag}]" if f.source_of_flag else ""
             lines.append(
                 f"   {f.verdict:<11s} p={f.probability:.3f}  "
                 f"margin={f.margin:.3f}  "
-                f"lines {f.start_line}-{f.end_line}  {f.function}()")
+                f"lines {f.start_line}-{f.end_line}  {f.function}()" + via)
+            for h in f.rule_hits:
+                lines.append(f"      {h.rule_id} {h.severity:<6s} line {h.line}: "
+                             f"{h.message}  `{h.snippet}`")
 
     lines.append(
         f"\n{'=' * 66}\n"
         f"{n_files} file(s) scanned, {n_funcs} function(s) scored, "
         f"{n_rejected} skipped\n"
-        f"{n_flagged} flagged at threshold {bundle.threshold:.3f}"
-        + (f", {n_unsure} unsure" if n_unsure else ""))
+        f"{n_flagged} flagged ({n_model} by the model at threshold "
+        f"{bundle.threshold:.3f}, {n_rule} by high-severity rules)"
+        + (f", {n_unsure} unsure" if n_unsure else "")
+        + (f", {n_review} to review" if n_review else ""))
 
     # The honesty paragraph. These numbers are from the model's own evaluation
     # and they are the difference between a tool a reviewer can calibrate their
@@ -235,12 +293,17 @@ def format_results(results: list[ScanResult], bundle: Bundle,
     md = bundle.metadata
     if "test_precision" in md:
         lines.append(
-            f"\nCalibration note: at this threshold the detector measured "
+            f"\nCalibration note: at this threshold the model measured "
             f"precision {md['test_precision']:.3f} and recall "
             f"{md['test_recall']:.3f} on held-out repositories.\n"
             f"Expect roughly {md['test_precision'] * 100:.0f} in 100 flags to "
             f"be real, and expect it to miss about "
             f"{(1 - md['test_recall']) * 100:.0f}% of real issues.\n"
             f"Treat flags as 'review this first', not as proof of a bug.")
+    if n_rule or n_review:
+        lines.append(
+            "Rule hits are exact pattern matches (see sureshot/rules.py). They "
+            "explain WHERE the risk is,\nbut a match means the construct is "
+            "present, not that it is misused.")
 
     return "\n".join(lines)

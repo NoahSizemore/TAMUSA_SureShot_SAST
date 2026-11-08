@@ -172,10 +172,10 @@ def main():
     parser.add_argument("--save", type=Path, default=None,
                         help="directory to write a reusable detector bundle to, "
                              "e.g. artifacts/xgboost (omit to train without saving)")
-    parser.add_argument("--select-on", default="test", choices=["test", "calib"],
+    parser.add_argument("--select-on", default="calib", choices=["test", "calib"],
                         help="split used to choose the winning calibrator; "
-                             "'test' reproduces the published numbers, 'calib' "
-                             "is the leak-free option (see pipeline.run)")
+                             "'calib' (default) is the leak-free option, 'test' "
+                             "reproduces the older published numbers (see pipeline.run)")
     args = parser.parse_args()
 
     # load the dataset and split it into training and testing sets

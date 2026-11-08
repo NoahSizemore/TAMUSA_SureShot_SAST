@@ -115,10 +115,10 @@ def main() -> None:
     ap.add_argument("--report", type=Path, default=Path("reports/reference.json"))
     ap.add_argument("--save", type=Path, default=None,
                     help="directory to write a reusable detector bundle to")
-    ap.add_argument("--select-on", default="test", choices=["test", "calib"],
-                    help="split used to choose the winning calibrator; 'test' "
-                         "reproduces the published numbers, 'calib' is the "
-                         "leak-free option (see pipeline.run)")
+    ap.add_argument("--select-on", default="calib", choices=["test", "calib"],
+                    help="split used to choose the winning calibrator; 'calib' "
+                         "(default) is the leak-free option, 'test' reproduces "
+                         "the older published numbers (see pipeline.run)")
     args = ap.parse_args()
 
     ds = data.load(args.data, args.source_type, args.drop_size_features)

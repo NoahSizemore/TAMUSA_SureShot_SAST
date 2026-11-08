@@ -34,7 +34,7 @@ from .persist import Bundle
 def run(model, ds: Dataset, label: str = "model",
         report: str | Path | None = None, verbose: bool = True,
         save_to: str | Path | None = None,
-        select_on: str = "test") -> dict:
+        select_on: str = "calib") -> dict:
     """
     Train, calibrate and evaluate a model on an already-split Dataset.
 
@@ -49,11 +49,11 @@ def run(model, ds: Dataset, label: str = "model",
     select_on
         Which data decides WHICH of the three calibrators wins.
 
-        "test"  (default) reproduces the behaviour this project has always had,
-                and therefore the numbers committed in reports/.
+        "calib" (default) selects by grouped cross-validation inside the
+                calibration split, touching no test data at all.
 
-        "calib" selects by grouped cross-validation inside the calibration
-                split, touching no test data at all.
+        "test"  the original behaviour, which picks by ECE on the test split.
+                Use it to reproduce reports produced before the default changed.
 
         This is worth understanding rather than just flipping. Rule 2 in
         STRUCTURE.md says the calibration split fits the calibrator and the
@@ -72,9 +72,9 @@ def run(model, ds: Dataset, label: str = "model",
         real corpus. "calib" therefore uses out-of-fold cross-validation within
         the calibration split instead; see calibrate.select_calibrator().
 
-        Switching the default would change every published number in this repo,
-        so that is a deliberate decision for the team to make, not something
-        this function should do quietly.
+        The team switched the default to "calib". Reports in reports/ that
+        were produced earlier record "calibrator_selected_on": "test"; pass
+        select_on="test" to reproduce them.
     """
     if ds.train_idx is None:
         raise ValueError("Dataset not split. Call sureshot.data.split(ds) first.")
@@ -111,7 +111,7 @@ def run(model, ds: Dataset, label: str = "model",
                   f"{r['ece_quantile']:7.4f} {r['ece_uniform']:7.4f} {r['mce']:7.4f}")
 
     # Pick the winning calibrator by ECE. See the `select_on` note in the
-    # docstring for why the default peeks at test and why that is not ideal.
+    # docstring for why selecting on test is a leak and calib is the default.
     cal_names = list(cals)
     out_select_detail: dict[str, float] = {}
     if select_on == "test":

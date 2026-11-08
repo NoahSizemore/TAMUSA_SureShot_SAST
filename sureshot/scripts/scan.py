@@ -15,9 +15,13 @@ repo measures a model; this runs one.
     python scripts/scan.py --model artifacts/xgboost some/crate/src
     cat lib.rs | python scripts/scan.py --model artifacts/xgboost -
 
+Each function is checked by the ML model AND by the pattern rules in
+src/sureshot/rules.py. It is flagged when the model flags it or a
+high-severity rule fires; --no-rules gives the model-only result.
+
 Exit codes, chosen so this can be dropped into CI:
     0   scanned cleanly, nothing flagged
-    1   at least one function flagged
+    1   at least one function flagged (by the model or a high-severity rule)
     2   usage or load error (bad path, missing bundle, no scoreable input)
 
 Note that exit 1 means "a human should look", not "a vulnerability exists". At
@@ -57,6 +61,8 @@ def main() -> int:
                     help="emit machine-readable JSON instead of a report")
     ap.add_argument("--quiet", action="store_true",
                     help="suppress the model summary header")
+    ap.add_argument("--no-rules", action="store_true",
+                    help="skip the pattern rules and report the model's calls only")
     args = ap.parse_args()
 
     # --- load the detector ---------------------------------------------------
@@ -89,14 +95,16 @@ def main() -> int:
         if p == "-":
             source = sys.stdin.buffer.read()
             results.append(scan_source(bundle, source, path="<stdin>",
-                                       abstain_margin=args.abstain_margin))
+                                       abstain_margin=args.abstain_margin,
+                                     rules=not args.no_rules))
         else:
             path = Path(p)
             if not path.exists():
                 print(f"error: no such path: {p}", file=sys.stderr)
                 return 2
             results.extend(scan_path(bundle, path,
-                                     abstain_margin=args.abstain_margin))
+                                     abstain_margin=args.abstain_margin,
+                                     rules=not args.no_rules))
 
     if not results:
         print("error: no .rs files found to scan", file=sys.stderr)
@@ -123,11 +131,13 @@ def main() -> int:
                             "flagged": f.flagged,
                             "abstained": f.abstained,
                             "verdict": f.verdict,
+                            "flagged_by": f.source_of_flag,
+                            "rule_hits": [h.to_dict() for h in f.rule_hits],
                         }
                         # --all controls verbosity in JSON too, so a CI job can
                         # keep the full scored list without parsing the report.
                         for f in (r.findings if args.all
-                                  else r.flagged + r.abstained)
+                                  else r.flagged + r.abstained + r.review)
                     ],
                 }
                 for r in results
